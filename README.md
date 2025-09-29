@@ -97,11 +97,26 @@ adb shell "run-as com.termux /data/data/com.termux/files/usr/bin/bash -lc \
    export PATH LD_LIBRARY_PATH; termux-clipboard-set "'\''text here'\''"'"
 ```
 
-Example macOS alias for sending your current clipboard into Termux:
+Inside Termux itself, pipe anything you want into the Android clipboard or read it back again:
 
 ```bash
-alias termuxclip="pbpaste | adb shell 'run-as com.termux /data/data/com.termux/files/usr/bin/bash -lc \"PATH=$PREFIX/bin:$PREFIX/bin/applets:\$PATH; LD_LIBRARY_PATH=$PREFIX/lib:\$LD_LIBRARY_PATH; export PATH LD_LIBRARY_PATH; termux-clipboard-set\"'"
+echo "text here" | termux-clipboard-set     # copy literal text
+cat notes.txt | termux-clipboard-set        # send a file's contents
+termux-clipboard-get > pasted.txt           # capture clipboard into a file
 ```
+
+Add macOS aliases for sending your clipboard into Termux and pulling the Termux clipboard back to macOS:
+
+```bash
+# ~/.zshrc (or similar)
+alias termuxclippush='pbpaste | adb shell '\''run-as com.termux /data/data/com.termux/files/usr/bin/bash -lc "PATH=$PREFIX/bin:$PREFIX/bin/applets:\$PATH; LD_LIBRARY_PATH=$PREFIX/lib:\$LD_LIBRARY_PATH; export PATH LD_LIBRARY_PATH; termux-clipboard-set"'\''
+alias termuxclippull='adb shell '\''run-as com.termux /data/data/com.termux/files/usr/bin/bash -lc "PATH=$PREFIX/bin:$PREFIX/bin/applets:\$PATH; LD_LIBRARY_PATH=$PREFIX/lib:\$LD_LIBRARY_PATH; export PATH LD_LIBRARY_PATH; termux-clipboard-get"'\'' | pbcopy'
+```
+
+Usage:
+
+- `termuxclippush` — copies the current macOS clipboard into the Android clipboard.
+- `termuxclippull` — replaces the macOS clipboard with whatever is currently selected in Termux/Android.
 
 Grant the clipboard permission prompt the first time the companion app requests it.
 
