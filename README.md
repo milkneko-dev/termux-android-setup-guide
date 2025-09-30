@@ -120,7 +120,41 @@ Usage:
 
 Grant the clipboard permission prompt the first time the companion app requests it.
 
-## 7. Install Nerd Fonts inside Termux
+## 7. SSH host autocompletion in Termux
+Install bash-completion so `ssh` picks up host aliases from `~/.ssh/config` and `~/.ssh/known_hosts`:
+
+```bash
+pkg install -y bash-completion
+```
+
+If you do not already have a `~/.bashrc`, create one and source the Termux bash-completion shim:
+
+```bash
+cat <<'EOF' >> ~/.bashrc
+# Enable bash completion (SSH hosts, git, etc.)
+if [ -f "$PREFIX/etc/profile.d/bash_completion.sh" ]; then
+  . "$PREFIX/etc/profile.d/bash_completion.sh"
+fi
+EOF
+```
+
+For login shells (Termux launches bash as a login shell), make sure `~/.bash_profile` sources `~/.bashrc`:
+
+```bash
+cat <<'EOF' >> ~/.bash_profile
+if [ -f "$HOME/.bashrc" ]; then
+  . "$HOME/.bashrc"
+fi
+EOF
+```
+
+Restart Termux or run `source ~/.bashrc` in the current session. Tab-completion now expands aliases like:
+
+```bash
+ssh ww<Tab>
+```
+
+## 8. Install Nerd Fonts inside Termux
 Use Nerd Fonts so remote Neovim icons render correctly:
 
 ```bash
@@ -140,7 +174,7 @@ adb shell am start -n com.termux/.app.TermuxActivity
 
 Swap in another style (e.g., `FiraCodeNerdFont-SemiBold.ttf`) whenever needed and restart again.
 
-## 8. Handy maintenance commands
+## 9. Handy maintenance commands
 - Restart Termux quickly:
   ```bash
   adb shell am force-stop com.termux && adb shell am start -n com.termux/.app.TermuxActivity
@@ -155,7 +189,7 @@ Swap in another style (e.g., `FiraCodeNerdFont-SemiBold.ttf`) whenever needed an
   ssh-keygen -t ed25519 -C "device-termux"
   ```
 
-## 9. Troubleshooting notes
+## 10. Troubleshooting notes
 - If `pm install` cannot read from `/sdcard/Download/…`, push APKs to `/data/local/tmp` first.
 - Clipboard errors like `No shell command implementation.` mean the Samsung build blocks ADB clipboard APIs; Termux:API is the workaround.
 - When using `run-as com.termux`, always prepend `PATH=$PREFIX/bin:$PREFIX/bin/applets:$PATH` so Termux binaries resolve.
