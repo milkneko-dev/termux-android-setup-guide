@@ -194,4 +194,49 @@ Swap in another style (e.g., `FiraCodeNerdFont-SemiBold.ttf`) whenever needed an
 - Clipboard errors like `No shell command implementation.` mean the Samsung build blocks ADB clipboard APIs; Termux:API is the workaround.
 - When using `run-as com.termux`, always prepend `PATH=$PREFIX/bin:$PREFIX/bin/applets:$PATH` so Termux binaries resolve.
 
-Document last reviewed: **2025-09-29**.
+## 11. Install Neovim with NvChad (Termux)
+1. Fetch the latest stable Neovim tarball and drop it under `~/.local` (Termux packages require sudo for system-wide installs):
+
+   ```bash
+   mkdir -p ~/.local ~/.config
+   curl -L --fail -o ~/nvim-linux-arm64.tar.gz \
+     https://github.com/neovim/neovim/releases/download/stable/nvim-linux-arm64.tar.gz
+   tar -xzf ~/nvim-linux-arm64.tar.gz -C ~/.local
+   rm ~/nvim-linux-arm64.tar.gz
+   ```
+
+2. Add the Neovim bin directory to your PATH so `nvim` resolves in future sessions:
+
+   ```bash
+   cat <<'EOF' >> ~/.bashrc
+   if [ -d "$HOME/.local/nvim-linux-arm64/bin" ]; then
+     case ":$PATH:" in
+       *:"$HOME/.local/nvim-linux-arm64/bin":*) ;;
+       *) PATH="$HOME/.local/nvim-linux-arm64/bin:$PATH" ;;
+     esac
+   fi
+   EOF
+   source ~/.bashrc
+   ```
+
+   For login shells, append the same guard to `~/.profile` so Termux picks it up on launch:
+
+   ```bash
+   cat <<'EOF' >> ~/.profile
+   if [ -d "$HOME/.local/nvim-linux-arm64/bin" ] ; then
+     PATH="$HOME/.local/nvim-linux-arm64/bin:$PATH"
+   fi
+   EOF
+   ```
+
+3. Install the NvChad starter config and sync plugins:
+
+   ```bash
+   rm -rf ~/.config/nvim
+   git clone https://github.com/NvChad/starter ~/.config/nvim --depth 1
+   ~/.local/nvim-linux-arm64/bin/nvim --headless "+Lazy! sync" +qa
+   ```
+
+4. Launch Neovim normally (`nvim`). NvChad will finish lazy-loading plugins on first run. Use `Ctrl+n` to toggle the file tree and `<space> e` to focus it.
+
+Document last reviewed: **2025-10-04**.
