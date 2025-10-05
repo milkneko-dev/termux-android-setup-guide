@@ -120,6 +120,62 @@ Usage:
 
 Grant the clipboard permission prompt the first time the companion app requests it.
 
+### Termux API inside proot-distro Ubuntu
+Android 14+ blocks `app_process` execs from inside proot, so route Termux:API calls through the socket client instead.
+
+1. **Prep the host Termux session (outside proot):**
+   ```bash
+   pkg install termux-api termux-am-socket
+   ```
+   Open the Termux:API Android app once, grant Clipboard permission, then confirm the socket server is alive:
+   ```bash
+   echo "$TERMUX_APP__AM_SOCKET_SERVER_ENABLED"
+   ```
+   Expect `true`; if empty, force-stop Termux and relaunch.
+
+2. **Expose Termux binaries in Ubuntu without overriding shims:** append the Termux prefix to PATH (and optionally LD libs) from inside the Ubuntu rootfs:
+   ```bash
+   sudo tee /etc/profile.d/termux-host.sh >/dev/null <<'EOF'
+   #!/bin/sh
+   TERMUX_PREFIX="/data/data/com.termux/files/usr"
+   if [ -d "$TERMUX_PREFIX/bin" ]; then
+     PATH="$PATH:$TERMUX_PREFIX/bin"
+     export PATH
+   fi
+   if [ -d "$TERMUX_PREFIX/lib" ]; then
+     LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$TERMUX_PREFIX/lib"
+     export LD_LIBRARY_PATH
+   fi
+   EOF
+   ```
+
+3. **Shadow `am` with the socket-aware client:**
+   ```bash
+   sudo tee /usr/local/bin/am >/dev/null <<'EOF'
+   #!/bin/sh
+   exec /data/data/com.termux/files/usr/bin/termux-am "$@"
+   EOF
+   sudo chmod +x /usr/local/bin/am
+   ```
+
+4. **Verify from a fresh proot shell:**
+   ```bash
+   which am
+   which termux-clipboard-get
+   termux-clipboard-set "test from proot"
+   termux-clipboard-get
+   ```
+   Expect `/usr/local/bin/am` and clipboard round-trips without the `app_process` error.
+
+5. **Fallback (only if the socket path fails):** before launching proot, copy a working `app_process64` into Termux and bind it in your alias, e.g.:
+   ```bash
+   install -m 0755 /apex/com.android.art/bin/app_process64 \
+     $PREFIX/libexec/app_process.termux
+   proot-distro login ubuntu --bind \
+     $PREFIX/libexec/app_process.termux:/system/bin/app_process
+   ```
+   This restores the legacy `am` behavior but is slower than the socket workaround.
+
 ## 7. SSH host autocompletion in Termux
 Install bash-completion so `ssh` picks up host aliases from `~/.ssh/config` and `~/.ssh/known_hosts`:
 
@@ -239,4 +295,4 @@ Swap in another style (e.g., `FiraCodeNerdFont-SemiBold.ttf`) whenever needed an
 
 4. Launch Neovim normally (`nvim`). NvChad will finish lazy-loading plugins on first run. Use `Ctrl+n` to toggle the file tree and `<space> e` to focus it.
 
-Document last reviewed: **2025-10-04**.
+Document last reviewed: **2025-10-05**.
