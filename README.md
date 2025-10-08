@@ -295,4 +295,118 @@ Swap in another style (e.g., `FiraCodeNerdFont-SemiBold.ttf`) whenever needed an
 
 4. Launch Neovim normally (`nvim`). NvChad will finish lazy-loading plugins on first run. Use `Ctrl+n` to toggle the file tree and `<space> e` to focus it.
 
-Document last reviewed: **2025-10-05**.
+## 12. PostgreSQL for `svc-core` tests
+The `svc-core` repository expects a local PostgreSQL instance during its test suite. On the Ubuntu host:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y postgresql
+```
+
+If the package post-install script cannot initialize `/var/lib/postgresql/17/main` (common on user-namespaced environments), create a user-owned data directory instead:
+
+```bash
+/usr/lib/postgresql/17/bin/initdb -D ~/postgres-data \
+  --auth-local=trust --auth-host=scram-sha-256
+/usr/lib/postgresql/17/bin/pg_ctl -D ~/postgres-data -l ~/postgres-data/logfile start
+/usr/lib/postgresql/17/bin/psql -d postgres -c 'SELECT 1;'
+```
+
+Optional: create dedicated databases for development and testing.
+
+```bash
+/usr/lib/postgresql/17/bin/createdb svc_core_dev
+/usr/lib/postgresql/17/bin/createdb svc_core_test
+```
+
+When finished, stop the instance cleanly:
+
+```bash
+/usr/lib/postgresql/17/bin/pg_ctl -D ~/postgres-data stop
+```
+
+Export `DATABASE_URL=postgresql://localhost:5432/postgres` (or one of the new databases) before running `svc-core` tests.
+
+If you rely on the decrypted `.env`, create the matching PostgreSQL superuser:
+
+```bash
+/usr/lib/postgresql/17/bin/psql -d postgres -c "CREATE ROLE root WITH SUPERUSER LOGIN PASSWORD 'root';"
+```
+
+With the virtualenv active (`source .venv/bin/activate`), `make reset-database` now boots a clean schema against the local instance (expect harmless warnings about optional psycopg binaries).
+
+If PostgreSQL 17 triggers platform-specific regressions, install PostgreSQL 14 from PGDG instead and run it on an alternate port (5433 shown below):
+
+```bash
+# add PGDG repository (only once)
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/pgdg.asc
+echo 'deb [signed-by=/etc/apt/trusted.gpg.d/pgdg.asc] http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' |   sudo tee /etc/apt/sources.list.d/pgdg.list
+sudo apt-get update
+
+# install the 14.x binaries
+sudo apt-get install -y libicu70 libldap-2.5-0 postgresql-14 postgresql-client-14
+
+# initialize a user-scoped data directory and start on port 5433
+/usr/lib/postgresql/14/bin/initdb -D ~/postgres14-data --auth-local=trust --auth-host=scram-sha-256
+/usr/lib/postgresql/14/bin/pg_ctl -D ~/postgres14-data -o "-p 5433" -l ~/postgres14-data/logfile start
+/usr/lib/postgresql/14/bin/psql -p 5433 -d postgres -c "CREATE ROLE root WITH SUPERUSER LOGIN PASSWORD 'root';"
+```
+
+Update the project `.env` to point at `psql://root:root@localhost:5433/project-x` and export `PGHOST=localhost PGPORT=5433 PGUSER=root PGPASSWORD=root` when running `make reset-database` or `make test`.
+
+
+
+Document last reviewed: **2025-10-06**.
+
+## 13. svc-core virtualenv & secrets
+Before running Django management commands:
+
+```bash
+# ensure uv is available for Python 3.11 builds
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.11
+uv venv --python 3.11
+source .venv/bin/activate
+pip install -r requirements/dev.txt
+```
+
+After syncing Python deps, install GNU gettext (needed for message catalogs) and compile translations so CTA labels render like desktop builds:
+
+```bash
+sudo apt-get install -y gettext
+source .venv/bin/activate
+python manage.py compilemessages
+```
+The secrets fixtures rely on the `ejson` CLI:
+
+```bash
+sudo apt-get install -y golang-go
+go install github.com/Shopify/ejson/cmd/ejson@latest
+sudo ln -s "$HOME/go/bin/ejson" /usr/local/bin/ejson
+```
+
+Then decrypt the local environment secrets:
+
+```bash
+source .venv/bin/activate
+make secrets-create
+```
+
+The command writes `.env` at the repository root so `SECRET_KEY` and other settings resolve for `manage.py` invocations (e.g., `make reset-database`).
+
+## 14. Redis for `svc-core`
+Install the bundled Redis server on Ubuntu and start the daemon:
+
+```bash
+sudo apt-get install -y redis-server
+sudo service redis-server start
+```
+
+The init script may log an `ulimit` warning under user namespaces; the server still launches. Verify the instance responds locally:
+
+```bash
+redis-cli ping
+# PONG
+```
+
+If you need Redis automatically for future sessions, keep the `redis-server` service running or add it to your startup scripts before running `make` targets that depend on it.
