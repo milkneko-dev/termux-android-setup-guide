@@ -1,6 +1,6 @@
 # Termux Android Setup Guide
 
-Personal notes for provisioning Termux on a Samsung tablet (Android 13/One UI 6) from macOS, smoothing UI distractions, enabling clipboard sharing, and installing Nerd Fonts for remote dev work.
+Personal notes for provisioning Termux on a Samsung tablet (Android 15/One UI 7) from macOS, smoothing UI distractions, enabling clipboard sharing, and installing Nerd Fonts for remote dev work.
 
 ## 1. Prerequisites
 - Android device (Samsung tablet/phone) with developer options enabled and USB debugging allowed.
