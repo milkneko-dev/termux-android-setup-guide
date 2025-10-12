@@ -356,7 +356,7 @@ Update the project `.env` to point at `psql://root:root@localhost:5433/project-x
 
 
 
-Document last reviewed: **2025-10-06**.
+Document last reviewed: **2025-10-08**.
 
 ## 13. svc-core virtualenv & secrets
 Before running Django management commands:
@@ -410,3 +410,30 @@ redis-cli ping
 ```
 
 If you need Redis automatically for future sessions, keep the `redis-server` service running or add it to your startup scripts before running `make` targets that depend on it.
+
+## 15. AWS CLI (Ubuntu host)
+Install AWS CLI v2 inside the proot Ubuntu environment without requiring `sudo`:
+
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscliv2.zip
+rm -rf /tmp/aws
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install -i "$HOME/.local/aws-cli" -b "$HOME/.local/bin"
+```
+
+Verify the binary resolves (Termux shells already export `~/.local/bin` onto `PATH`):
+
+```bash
+aws --version
+# aws-cli/2.31.10 Python/3.13.7 ...
+```
+
+If `aws` is not found, add `~/.local/bin` to your PATH in `~/.bashrc`:
+
+```bash
+case ":$PATH:" in
+  *:"$HOME/.local/bin":*) ;;
+  *) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH
+```
