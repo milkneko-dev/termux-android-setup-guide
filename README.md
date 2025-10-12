@@ -356,17 +356,34 @@ Update the project `.env` to point at `psql://root:root@localhost:5433/project-x
 
 
 
-Document last reviewed: **2025-10-08**.
+Document last reviewed: **2025-10-12**.
 
 ## 13. svc-core virtualenv & secrets
-Before running Django management commands:
+Before running Django management commands, provision the project interpreter with `pyenv`:
 
 ```bash
-# ensure uv is available for Python 3.11 builds
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv python install 3.11
-uv venv --python 3.11
-source .venv/bin/activate
+# install build dependencies for compiling CPython
+sudo apt-get update
+sudo apt-get install -y build-essential libssl-dev zlib1g-dev \
+  libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev \
+  libncurses-dev tk-dev curl git
+
+# install pyenv (installs into ~/.pyenv)
+curl https://pyenv.run | bash
+
+# add pyenv init hooks (append to ~/.bashrc or ~/.profile inside the proot)
+export PYENV_ROOT="$HOME/.pyenv"
+command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+# restart the shell so the hooks take effect, then install Python 3.11.14
+pyenv install 3.11.14
+pyenv virtualenv 3.11.14 app-3.11
+
+# point the repo at the virtualenv and install dependencies
+cd /opt/lyucra/svc-core
+pyenv local app-3.11
 pip install -r requirements/dev.txt
 ```
 
@@ -374,7 +391,7 @@ After syncing Python deps, install GNU gettext (needed for message catalogs) and
 
 ```bash
 sudo apt-get install -y gettext
-source .venv/bin/activate
+pyenv activate app-3.11
 python manage.py compilemessages
 ```
 The secrets fixtures rely on the `ejson` CLI:
@@ -388,7 +405,7 @@ sudo ln -s "$HOME/go/bin/ejson" /usr/local/bin/ejson
 Then decrypt the local environment secrets:
 
 ```bash
-source .venv/bin/activate
+pyenv activate app-3.11
 make secrets-create
 ```
 
