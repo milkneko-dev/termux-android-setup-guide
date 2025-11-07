@@ -167,6 +167,13 @@ Cloudflare expects from this device.
 - Keep `/opt/milkneko/codex-src` around with the two local patches applied. To
   pick up new upstream releases: `git pull`, re-apply the patch if it gets
   overwritten, and re-run the build commands above.
+- When bumping Codex to a new release (e.g. 0.56.0):
+  1. `cd /opt/milkneko/codex-src && git pull`.
+  2. Update `[workspace.package] version` inside `codex-rs/Cargo.toml` to match the GitHub release tag.
+  3. Re-run the Android (and optional musl) build commands from sections 4.1/4.2.
+  4. Copy the new binary onto the phone, keep the `/data/data/com.termux/files/usr/bin/codex` symlink,
+     and verify `codex --version` reports the fresh version.
+
 - If Cloudflare ever reverts its filtering, you can swap the symlink back to the
   stock npm binary, but the Android build is safer because it doesn’t depend on
   proot or `CODEX_ALLOW_PRCTL_FAILURE`.
