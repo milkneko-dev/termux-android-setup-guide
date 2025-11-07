@@ -103,6 +103,10 @@ openssl-sys = { workspace = true, features = ["vendored"] }
 
 ### 4.1 Termux-native binary (Bionic/glibc)
 
+> **Version note (Nov 2025):** the current upstream release is **0.56.0**. Make
+> sure `[workspace.package] version` in `codex-rs/Cargo.toml` matches whatever
+> tag you are targeting before you run the commands below.
+
 ```bash
 export NDK=/opt/android-ndk/android-ndk-r26d
 cd /opt/milkneko/codex-src/codex-rs
