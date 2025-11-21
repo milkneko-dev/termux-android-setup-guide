@@ -10,7 +10,7 @@ Goal: install pyenv on the target Termux device and build/use CPython versions s
 - Repo paths: target `/data/data/com.termux/files/home/lyucra/svc-core`; reference workstation copy `/Volumes/ExternalDisk/LUIS_DATA/WORLD_WINNER/svc-core`.
 - `.python-version` expects pyenv env `app-3.11` → on workstation this maps to CPython **3.11.14** (`pyenv versions` shows `app-3.11 -> 3.11.14/envs/app-3.11`).
 - Target currently **has no pyenv installed** (`pyenv versions` fails).
-- Packages that need native deps: `cryptography` (openssl, rust), `psycopg` (libpq/pg_config), `pillow` (jpeg/png/freetype/lcms), `cffi` (libffi), `brotli` (C build). Plan Termux pkg install accordingly.
+- Packages that need native deps: `cryptography` (openssl, rust), `psycopg` (libpq/pg_config), `pillow` (jpeg/png/freetype/lcms), `cffi` (libffi), `brotli` (C build). Plan Termux pkg install accordingly. In Android builds we had to pin `lazy-object-proxy` to 1.12.0 (1.10.0 is yanked/bad) to finish dependency installation.
 - Disk on target: ~49 GB free (`df -h ~`); kernel `5.10.236-android` aarch64; should tolerate native builds with modest parallelism (e.g., `MAKEFLAGS=-j4`).
 
 ## Inputs to confirm
