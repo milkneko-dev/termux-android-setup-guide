@@ -33,25 +33,29 @@ Notes on using the `termux-services` package and runit to supervise daemons (e.g
    From another machine: `ssh luis-tab-s8 hostname` (targets `[192.168.5.72]:8022`).
 
 ## PostgreSQL service (`postgresql`)
-1. Initialize your PostgreSQL 14 data directory **inside the Ubuntu proot** (README §12 covers the steps). Example:
+
+### Preferred: native Termux Postgres (no proot)
+1. Install Termux packages and init the cluster inside Termux:
    ```bash
-   proot-distro login ubuntu -- /usr/lib/postgresql/14/bin/initdb \
-     -D /home/lyucra/postgres14-data \
-     --auth-local=trust --auth-host=scram-sha-256
+   pkg install postgresql
+   initdb -D ~/postgres-data --auth=scram-sha-256
    ```
-2. Start the supervisor **from the Termux host shell** (outside the Ubuntu proot), remove the `down` flag, and bring the service up. The run script defaults to major `14` in the `ubuntu` proot with the same bind mount as the `ubuntu` alias (`--bind /sdcard:/sdcard`); override `POSTGRES_MAJOR`, `POSTGRES_DATA_DIR`, `POSTGRES_PROOT_DISTRO`, `POSTGRES_PROOT_USER`, or `POSTGRES_PROOT_BIND` as needed:
+2. Enable and start the bundled runit service (it uses the Termux `postgres` binary):
    ```bash
    service-daemon start
    sv-enable postgresql
    sv up postgresql
    ```
-   The run script execs `proot-distro login ubuntu -- /usr/lib/postgresql/14/bin/postgres -D /home/lyucra/postgres14-data` with `logging_collector=off` so logs flow into runit.
-3. Check health and review logs (ensure no leftover host-level PostgreSQL processes are running, e.g. `pgrep postgres` should return nothing before enabling 14):
+3. Validate:
    ```bash
    sv status postgresql
    tail -n 40 $PREFIX/var/log/sv/postgresql/current
+   pg_isready -h 127.0.0.1 -p 5432
    ```
-   If you see `data directory ... not found`, revisit step 1 or adjust the path in `var/service/postgresql/run`.
+4. If you previously had a proot-backed Postgres on 5432, stop it first to avoid port conflicts: `sv down postgresql && pkill -f '/usr/lib/postgresql'` inside proot, then use the native service above.
+
+### Legacy: proot-backed Postgres
+Only keep this if you need glibc extensions. The run script execs `proot-distro login ubuntu -- /usr/lib/postgresql/14/bin/postgres ...` and logs to runit. Disable it if you move to the native Termux instance.
 
 ## Redis service (`redis`)
 1. Install the Termux build of Redis so the binary matches the Android libc:

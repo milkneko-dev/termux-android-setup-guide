@@ -121,6 +121,54 @@ Goal: install pyenv on the target Termux device and build/use CPython versions s
 - `app-3.11` is ready for `svc-core` (.python-version already points to it).
 - Sanity check for 3.11.14 env: `ssl`, `ctypes`, and `readline` extensions load successfully.
 
+## Dependency rebuilds for svc-core (Nov 22, 2025)
+
+Context: `pip install -r requirements/dev.txt` inside the Ubuntu proot was failing on the target because `pydantic-core` lacked a prebuilt wheel and the build backend (`maturin`) was missing. `gevent` also needed a local wheel.
+
+- Tooling installed in proot: Rust 1.91.1 plus `cargo install maturin` (binary lives in `~/.cargo/bin`). Keep `PATH="/data/data/com.termux/files/home/.cargo/bin:$PATH"` during builds.
+- `pydantic-core 2.16.2` rebuilt with maturin:
+  ```bash
+  proot-distro login ubuntu --shared-tmp --bind /data/data/com.termux/files:/data/data/com.termux/files -- \
+    env -i PATH=/data/data/com.termux/files/home/.cargo/bin:/data/data/com.termux/files/home/.pyenv/versions/app-3.11/bin:/usr/bin:/bin \
+    HOME=/root TMPDIR=/tmp PREFIX=/data/data/com.termux/files/usr PYENV_ROOT=/data/data/com.termux/files/home/.pyenv \
+    bash -lc '
+      cd /tmp && rm -rf pydc && mkdir pydc && cd pydc
+      curl -LO https://files.pythonhosted.org/packages/source/p/pydantic-core/pydantic_core-2.16.2.tar.gz
+      tar xf pydantic_core-2.16.2.tar.gz && cd pydantic_core-2.16.2
+      pip install typing_extensions
+      maturin build --release -o /tmp/pydc/wheels
+    '
+  # Wheel: /tmp/pydc/wheels/pydantic_core-2.16.2-cp311-cp311-linux_aarch64.whl
+  ```
+  Install into the pyenv env with `pip install --no-deps /tmp/pydc/wheels/pydantic_core-2.16.2-cp311-cp311-linux_aarch64.whl`.
+
+- `gevent 23.9.1` rebuilt in proot (needed because upstream wheel is glibc-only):
+  ```bash
+  proot-distro login ubuntu --shared-tmp --bind /data/data/com.termux/files:/data/data/com.termux/files -- \
+    env -i PATH=/data/data/com.termux/files/home/.pyenv/versions/app-3.11/bin:/usr/bin:/bin \
+    HOME=/root TMPDIR=/tmp PYENV_ROOT=/data/data/com.termux/files/home/.pyenv \
+    bash -lc '
+      cd /tmp && rm -rf gevent-build && mkdir gevent-build && cd gevent-build
+      pip download gevent==23.9.1 && tar xf gevent-23.9.1.tar.gz && cd gevent-23.9.1
+      # force /bin/sh during build to dodge proot prctl issues
+      python - <<"PY"
+import pathlib
+p = pathlib.Path("src/gevent/_setuputils.py")
+data = p.read_text()
+data = data.replace("executable=None", "executable='/bin/sh'")
+p.write_text(data)
+PY
+      TMPDIR=/tmp pip wheel --no-build-isolation --no-deps . -w /tmp/gevent-build/wheel
+    '
+  # Wheel: /tmp/gevent-build/wheel/gevent-23.9.1-cp311-cp311-linux_aarch64.whl
+  ```
+  Install with `pip install --no-deps /tmp/gevent-build/wheel/gevent-23.9.1-cp311-cp311-linux_aarch64.whl`.
+
+Notes
+- These wheels are built against glibc inside proot. They import correctly **inside proot**, but will fail on pure Termux/Bionic (`dlopen ... libc.so.6` errors). Run `svc-core` inside the same proot, or rebuild gevent/pydantic-core natively in Termux if you want to run outside proot.
+- When re-running `pip install -r requirements/dev.txt` in proot, export `TMPDIR=/tmp` to avoid hardlink errors and keep `PATH` pointed at the pyenv env plus `~/.cargo/bin` so `maturin` is found.
+- Pending action: rerun the requirements install inside proot now that the wheels exist, then `python -c "import gevent, pydantic_core"` to confirm.
+
 ## Next actions
 - Confirm desired Python versions and whether cross-compiling is truly required.
 - Run the Termux dependency install and pyenv bootstrap commands (steps 1–4).
