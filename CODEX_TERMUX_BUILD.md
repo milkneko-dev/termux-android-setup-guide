@@ -164,6 +164,30 @@ The command should complete immediately with a valid response. No environment
 variables are required because the Android binary’s TLS fingerprint matches what
 Cloudflare expects from this device.
 
+### 5.1 Optional: update Ubuntu proot distro
+
+Termux and proot Ubuntu do not share `/usr/bin` or `/usr/local/bin`. Updating
+the Termux symlink above does not update the Ubuntu rootfs. If you use proot,
+deploy the GNU build from section 4.2 as well:
+
+```bash
+# Copy the GNU/proot binary into Termux home
+scp /tmp/codex-aarch64-gnu luis-tab-s8:/data/data/com.termux/files/home/codex-aarch64-gnu
+
+# Install it inside the Ubuntu rootfs
+ssh luis-tab-s8 'proot-distro login ubuntu -- sh -lc "install -m 755 /data/data/com.termux/files/home/codex-aarch64-gnu /usr/local/bin/codex"'
+```
+
+Because proot blocks `prctl(PR_SET_DUMPABLE, 0)`, set the override before
+launching:
+
+```bash
+ssh luis-tab-s8 'proot-distro login ubuntu -- env CODEX_ALLOW_PRCTL_FAILURE=1 codex --version'
+```
+
+If you want that env var to be automatic, add it to the Ubuntu shell profile
+(for example `/root/.bashrc` when using the default root login).
+
 ---
 
 ## 6. Maintenance tips
@@ -177,6 +201,8 @@ Cloudflare expects from this device.
   3. Re-run the Android (and optional musl) build commands from sections 4.1/4.2.
   4. Copy the new binary onto the phone, keep the `/data/data/com.termux/files/usr/bin/codex` symlink,
      and verify `codex --version` reports the fresh version.
+  5. If you use proot Ubuntu, also deploy the GNU build via section 5.1 and verify
+     inside proot with `CODEX_ALLOW_PRCTL_FAILURE=1 codex --version`.
 
 - If Cloudflare ever reverts its filtering, you can swap the symlink back to the
   stock npm binary, but the Android build is safer because it doesn’t depend on
